@@ -1,6 +1,6 @@
 <script type="text/javascript">
     RED.nodes.registerType('smgw-read',{
-        category: 'function',
+        category: 'network',
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
@@ -16,6 +16,7 @@
   
         inputs:0,
         outputs:1,
+        icon: "gauge.png",
         label: function() {
             return this.name||"smgw-read";
         }
@@ -33,22 +34,76 @@
     </div>
     <div class="form-row">
         <label for="node-input-meterid"><i class="fa fa-th"></i> Meter ID</label>
-        <input type="text" id="node-input-meterid" placeholder="e.g. 01007e318002.1itr0055482102.sm">
+        <input type="text" id="node-input-meterid" placeholder="e.g. 1itr0055482102.sm">
     </div>
+    <div class="form-tips"><b>Tip:</b> Meter ID is printed on the connected smart meter or or can be found out via the SMGW's web interface</div>
     <div class="form-row">
         <label for="node-input-interval"><i class="fa fa-clock-o"></i> Refresh Interval (minutes)</label>
         <input type="text" id="node-input-interval">
     </div>
-    <div class="form-tips"><b>Tip:</b> This is here to help.</div>
+    <div class="form-tips"><b>Tip: An interval shorter than the gateways internal one (usually 15 minutes) does not improve the resolution.</b> </div>
+    
 </script>
 
 <script type="text/html" data-help-name="smgw-read">
-    <p>Some useful help text to introduce the node.</p>
+    <p>Node to read the value and metadata of a meter connected to the SMGW. The meter is specified by the Meter ID Property. </p>
     <h3>Outputs</h3>
         <dl class="message-properties">
         <dt>payload
-            <span class="property-type">string | buffer</span>
+            <span class="property-type">number</span>
         </dt>
+        <dd>
+            The last meter value as read from the SMGW
+        </dd>
+        <dt>time
+            <span class="property-type">number (timestamp)</span>
+        </dt>
+        <dd>
+            Unix timestamp of the meter value
+        </dd>
+        <dt>unit
+            <span class="property-type">String</span>
+        </dt>
+        <dd>
+            The unit of the meter value (payload)
+        </dd>
+        <dt>isvalid
+            <span class="property-type">Boolean</span>
+        </dt>
+        <dd>
+            Indicates if the meter value is valid
+        </dd>
+        <dt>time_raw
+            <span class="property-type">String</span>
+        </dt>
+        <dd>
+            Timestamp as String, as indicated by the gateway
+        </dd>
+        <dt>meterid
+            <span class="property-type">String</span>
+        </dt>
+        <dd>
+            Device ID of the meter
+        </dd>
+        <dt>updateinterval
+            <span class="property-type">Number</span>
+        </dt>
+        <dd>
+            Interval in seconds in which the gateway updates the value from the meter
+        </dd>
+        <dt>gwfirmware
+            <span class="property-type">String</span>
+        </dt>
+        <dd>
+            Firmware version identifier of the gateway
+        </dd>
+        <dt>obis
+            <span class="property-type">String</span>
+        </dt>
+        <dd>
+            OBIS indicator of the measurement
+        </dd>
+        </dl>
     <h3>Details</h3>
     <p>Some more information about the node.</p>
  </script>

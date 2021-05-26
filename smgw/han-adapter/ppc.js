@@ -4,13 +4,16 @@ const { Console } = require('console');
 
 let crypto = require('crypto');
 
-let md5 = (data) => {
+/* shortcut to md5 hash function */
+var md5 = (data) => {
     let md5 = crypto.createHash('md5');
     let result = md5.update(data).digest('hex');
 
     return result;
 }
 
+
+/* simple http digest auth implementation with support for nc counter, might be useful for other Smart Meter Gateways */
 class DigestClient {
     constructor(options, username, password, https) {
         this.username = username;
@@ -28,13 +31,16 @@ class DigestClient {
         this.realm = null;
     }
 
+
+
+    /* int to string with leading zeros */
     pad(num, size) {
         num = num.toString();
         while (num.length < size) num = "0" + num;
         return num;
     }
 
-
+    /*parses the relevant digest auth data form incoming html header */
     parseDigestHeader(auth_header) {
         let parts = auth_header.split(",");
         for (let item of parts) {
@@ -63,6 +69,7 @@ class DigestClient {
         }
     }
 
+    /* generate a valid digest auth header for outgoing requests   */
     getAuthHeader() {
         let HA1 = md5(this.username + ":" + this.realm + ":" + this.password);
         let HA2 = md5(this.options.method + ":" + this.options.path);
@@ -70,6 +77,7 @@ class DigestClient {
         return "Digest username=\"" + this.username + "\",realm=\"" + this.realm + "\",nonce=\"" + this.nonce + "\",uri=\"" + this.options.path + "\",cnonce=\"" + this.cnonce + "\",nc=" + this.pad(this.nc, 8) + ",algorithm=MD5,response=\"" + response + "\",qop=\"" + this.qop + "\"";
     }
 
+    /* get the auth header for following requests */
     auth(path) {
         if (path) {
             this.options.path = path;
@@ -146,10 +154,12 @@ class PpcHanAdapter {
             port: 443,
             path: '/cgi-bin/hanservice.cgi',
             method: 'GET',
-            rejectUnauthorized: false,
+            rejectUnauthorized: false, //do not check ssl cert
         };
     }
 
+
+    /* Init a new DiggestClient to communicate with the gateway */
     client() {
         return new DigestClient(this.options, this.config.credentials.username, this.config.credentials.password, true);
     }
@@ -175,51 +185,70 @@ class PpcHanAdapter {
     }
 
 
-    readCounter(meter_id) {
+    readMeter(meter_id) {
+
         var client = this.client();
-        var session_cookie = '';
 
         return new Promise((resolve, reject) => {
+            /* digest auth to the gateway */
             client.auth("/cgi-bin/hanservice.cgi")
                 .then(() => {
+                    /* get welcome page with a simple GET request */
                     return client.request();
                 })
                 .then((res) => {
                     /*check if error page */
-                    if(res.body.indexOf('Fehler') >= 0){
+                    if (res.body.indexOf('Fehler') >= 0) {
                         reject('Auth Error');
                     }
-                    session_cookie = res.meta.headers['set-cookie'][0].split(';')[0];
+
+                    /*get and save the session cookie, has to be send with any request */
+                    client.options.headers['Cookie'] = res.meta.headers['set-cookie'][0].split(';')[0];
+
+                    /* parse the received html */
                     var doc = parse(res.body);
-                    var tkn = doc.querySelector('#button_menu_zaehler').parentNode.querySelector('input[name="tkn"]').getAttribute('value');
+
+                    /* navigate to Zähler page with POST request */
+                    var tkn = doc.querySelector('#button_menu_zaehler').parentNode.querySelector('input[name="tkn"]').getAttribute('value'); //looks like a CSRF-Token
                     var action = doc.querySelector('#button_menu_zaehler').parentNode.querySelector('input[name="action"]').getAttribute('value');
                     var post_body = "tkn=" + tkn + "&action=" + action;
-                    client.options.headers['Cookie'] = session_cookie;
                     return client.request('POST', post_body);
 
                 })
                 .then((res) => {
+                    /* parse the received html */
                     var doc = parse(res.body);
+
+                    /* get the requested meterid form the select input on the page, select value (mid) changes on every request */
                     var meter_select = doc.querySelector('#meterform_select_meter');
                     var mid = null;
                     var meter_list = '';
                     for (let meter of meter_select.childNodes) {
+                        /* find the requested meter in select options */
                         meter_list += meter.text + ", ";
                         if (meter.text.indexOf(meter_id) >= 0) {
                             mid = meter.getAttribute('value');
                         }
-                    }   
+                    }
+
+                    /* if the requested meter is not found */
                     if (!mid) {
                         console.log("meter " + meter_id + " not found! Available meters: " + meter_list);
                         reject('Meter with id ' + meter_id + ' not found! ' + "Available meters: " + meter_list);
                     }
 
-                    var tkn = doc.querySelector('#form_meterform').querySelector('input[name="tkn"]').getAttribute('value');
+                    /* click "Zählerprofil" Button */
+                    var tkn = doc.querySelector('#form_meterform').querySelector('input[name="tkn"]').getAttribute('value'); //looks like a CSRF-Token
                     var post_body = "tkn=" + tkn + "&action=showMeterProfile&mid=" + mid;
                     return client.request('POST', post_body);
+
                 })
                 .then((res) => {
+                    /* parse the received html */
                     var doc = parse(res.body);
+    
+                    /* we're now on the page with the meter values, lets extract them*/
+                    var meta_table_tds = doc.querySelectorAll('.content > table:nth-of-type(2) > tr > td:nth-of-type(2)');
                     const meter_data = {
                         'value': parseFloat(doc.querySelector('#table_metervalues_col_wert').text),
                         'unit': doc.querySelector('#table_metervalues_col_einheit').text,
@@ -227,9 +256,13 @@ class PpcHanAdapter {
                         'isvalid': doc.querySelector('#table_metervalues_col_istvalide').text,
                         'name': doc.querySelector('#table_metervalues_col_name').text,
                         'obis': doc.querySelector('#table_metervalues_col_obis').text,
+                        'fwversion': doc.querySelector('#div_fwversion').text,
+                        'meterid': meta_table_tds[0].text,
+                        'updateinterval': parseInt(meta_table_tds[6].text)
                     };
+
                     resolve(meter_data);
-                }).catch((err)=>{
+                }).catch((err) => {
                     reject(err);
                 });
         });
