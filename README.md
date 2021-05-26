@@ -13,7 +13,7 @@ Use 'Manage Palette' in the Node RED Webinterface or install via cli:
 
 ```
 $ cd ~/.node-red
-$ npm install node-red-contrib-chatbot
+$ npm install node-red-contrib-smgw
 ```
 
 ### Gateway credentials/ip and default ip
