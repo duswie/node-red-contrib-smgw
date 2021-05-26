@@ -102,3 +102,6 @@ dist
 
 # TernJS port file
 .tern-port
+
+#dev only node
+node_red_data/*

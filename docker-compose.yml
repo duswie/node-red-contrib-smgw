@@ -1,0 +1,7 @@
+services:
+    node-red:
+        image: nodered/node-red
+        volumes:
+            - .:/workdir
+        ports:
+            - "1880:1880"        
