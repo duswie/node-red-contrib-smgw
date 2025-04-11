@@ -22,7 +22,7 @@ class ExampleHanAdapter {
                 'unit': 'kWh',
                 'timestamp': "2021-05-26 17:00:00",
                 'isvalid': true,
-                'name': 'Wirkleitung',
+                'name': 'Wirkleistung',
                 'obis': "1-0:1.8.0",
                 'fwversion': "31416-31435",
                 'meterid': "1itr0035459107.sm",
